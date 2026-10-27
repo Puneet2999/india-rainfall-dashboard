@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>India Rainfall Analysis & Prediction Dashboard (1901–2015)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Plotly JS CDN (Automatically shimmed in Clario) -->
+  <script src="https://cdn.plot.ly/plotly-2.29.1.min.js"></script>
+  <!-- Pre-processed Dataset Bundle -->
+  <script src="dashboard_data.js"></script>
+  <style>
+    /* Custom scrollbars & dark theme polish */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0b0f19; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    
+    .glass-card {
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    }
+    .glass-card-hover {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-card-hover:hover {
+      border-color: rgba(56, 189, 248, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 14px 28px -5px rgba(14, 165, 233, 0.15);
+    }
+    .tab-active {
+      background: #0284c7;
+      color: #ffffff;
+      font-weight: 600;
+    }
+    .badge-rain-extreme {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .badge-rain-wet {
+      background: rgba(16, 185, 129, 0.2);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+  </style>
+</head>
+<body class="bg-[#070b14] text-slate-100 min-h-screen font-sans antialiased selection:bg-cyan-500 selection:text-white">
+
+  <!-- TOP APP HEADER -->
+  <header class="border-b border-slate-800 bg-[#0b0f19]/90 sticky top-0 z-50 backdrop-blur-md">
+    <div class="max-w-[1700px] mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white via-cyan-100 to-sky-300 bg-clip-text text-transparent flex items-center gap-2">
+            Rainfall Climatology & Predictive Horizon
+            <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800 font-medium">India 1901–2015</span>
+          </h1>
+          <p class="text-xs text-slate-400">Meteorological Subdivision Analysis, Seasonal Teleconnections & 2016 Forecast</p>
+        </div>
+      </div>
+
+      <!-- Quick Section Anchor Links -->
+      <nav class="hidden xl:flex items-center gap-2 text-xs font-medium text-slate-300">
+        <a href="#section-kpis" class="px-2.5 py-1.5 rounded-lg hover:bg-slate-800 hover:text-cyan-400 transition">KPIs</a>
+        <a href="#section-trends" class="px-2.5 py-1.5 rounded-lg hover:bg-slate-800 hover:text-cyan-400 transition">Historical Trends</a>
+        <a href="#section-regional" class="px-2.5 py-1.5 rounded-lg hover:bg-slate-800 hover:text-cyan-400 transition">Regional & Districts</a>
+        <a href="#section-seasonal" class="px-2.5 py-1.5 rounded-lg hover:bg-slate-800 hover:text-cyan-400 transition">Seasonal Dynamics</a>
+        <a href="#section-forecast" class="px-2.5 py-1.5 rounded-lg hover:bg-slate-800 hover:text-cyan-400 transition">2016 Forecasting</a>
+        <a href="#section-insights" class="px-2.5 py-1.5 rounded-lg hover:bg-slate-800 hover:text-cyan-400 transition">Evidence & Insights</a>
+      </nav>
+
+      <!-- Meta Badges -->
+      <div class="flex items-center gap-2 text-xs">
+        <span class="px-2.5 py-1 rounded-md bg-slate-800/80 text-slate-300 border border-slate-700/60 font-mono">36 Subdivisions</span>
+        <span class="px-2.5 py-1 rounded-md bg-slate-800/80 text-slate-300 border border-slate-700/60 font-mono">641 Districts</span>
+        <span class="px-2.5 py-1 rounded-md bg-cyan-950/60 text-cyan-300 border border-cyan-800/60 font-mono">115 Years</span>
+      </div>
+    </div>
+
+    <!-- DYNAMIC INTERACTIVE FILTER CONTROL BAR -->
+    <div class="border-t border-slate-800/70 bg-[#0e1424]/95 px-4 sm:px-6 py-3 shadow-inner">
+      <div class="max-w-[1700px] mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+        
+        <!-- Filter 1: Meteorological Subdivision -->
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            Meteorological Subdivision
+          </label>
+          <select id="filter-subdivision" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-medium">
+            <option value="ALL INDIA">All India (National Aggregate)</option>
+            <!-- Injected dynamically -->
+          </select>
+        </div>
+
+        <!-- Filter 2: Year Range Presets -->
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            Historical Epoch Presets
+          </label>
+          <select id="filter-epoch-preset" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500">
+            <option value="all">Entire Historical Span (1901–2015)</option>
+            <option value="pre_indep">Pre-Independence (1901–1946)</option>
+            <option value="post_indep">Post-Independence (1947–2015)</option>
+            <option value="last30">Modern IMD Normal Baseline (1986–2015)</option>
+            <option value="custom">Custom Range (Use Slider Below)</option>
+          </select>
+        </div>
+
+        <!-- Filter 3: Year Range Min/Max Inputs -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Year Range</label>
+            <span id="label-year-range" class="text-xs font-mono text-cyan-400">1901 – 2015</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="input-year-start" type="number" min="1901" max="2015" value="1901" class="w-1/2 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-center text-white focus:outline-none focus:border-cyan-500 font-mono">
+            <span class="text-slate-500 text-xs">to</span>
+            <input id="input-year-end" type="number" min="1901" max="2015" value="2015" class="w-1/2 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-center text-white focus:outline-none focus:border-cyan-500 font-mono">
+          </div>
+        </div>
+
+        <!-- Filter 4: Season / Month Filter -->
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            Season / Temporal Aggregation
+          </label>
+          <select id="filter-season" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-medium">
+            <option value="ANNUAL">Annual Total (12 Months)</option>
+            <option value="Jun-Sep">Monsoon (Jun–Sep) [~75% Total]</option>
+            <option value="Mar-May">Pre-Monsoon / Summer (Mar–May)</option>
+            <option value="Oct-Dec">Post-Monsoon / NE (Oct–Dec)</option>
+            <option value="Jan-Feb">Winter (Jan–Feb)</option>
+            <option value="m_JUL">Peak Month: July</option>
+            <option value="m_AUG">Peak Month: August</option>
+          </select>
+        </div>
+
+        <!-- Filter 5: State & District Matcher -->
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            District Normals Crosswalk
+          </label>
+          <select id="filter-district-focus" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500">
+            <option value="ALL">All Associated Districts (Normals)</option>
+            <!-- Injected dynamically based on subdivision -->
+          </select>
+        </div>
+
+        <!-- Filter 6: Quick Action & Reset -->
+        <div class="flex gap-2">
+          <button id="btn-reset-filters" class="w-full bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 text-xs font-medium py-1.5 px-3 rounded-lg border border-slate-700 transition flex items-center justify-center gap-1.5 shadow">
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            Reset Filters
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-[1700px] mx-auto px-4 sm:px-6 py-6 space-y-8">
+
+    <!-- ========================================== -->
+    <!-- SECTION 1: EXECUTIVE KPI CARDS -->
+    <!-- ========================================== -->
+    <section id="section-kpis" class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+          Climatological Key Performance Indicators (<span id="kpi-target-label" class="text-cyan-400">All India</span>)
+        </h2>
+        <span class="text-xs text-slate-400" id="kpi-temporal-span">Epoch: 1901 – 2015</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        
+        <!-- Card 1: Average Annual Rainfall -->
+        <div class="glass-card glass-card-hover rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+              <span>Mean Climatological Rainfall</span>
+              <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+              <span id="kpi-mean-annual" class="text-2xl sm:text-3xl font-extrabold text-white font-mono tracking-tight">1,411.0</span>
+              <span class="text-xs text-slate-400 font-semibold">mm / yr</span>
+            </div>
+          </div>
+          <div class="mt-3 pt-2.5 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>Historical Coeff. of Var:</span>
+            <span id="kpi-cv-annual" class="font-mono text-cyan-300 font-medium">8.4%</span>
+          </div>
+        </div>
+
+        <!-- Card 2: Latest Available Rainfall (2015) -->
+        <div class="glass-card glass-card-hover rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+              <span>Latest Historical Year (<span id="kpi-latest-year">2015</span>)</span>
+              <span id="kpi-anomaly-badge" class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-950/80 text-rose-300 border border-rose-800">Deficit</span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+              <span id="kpi-latest-annual" class="text-2xl sm:text-3xl font-extrabold text-white font-mono tracking-tight">1,280.6</span>
+              <span class="text-xs text-slate-400 font-semibold">mm</span>
+            </div>
+          </div>
+          <div class="mt-3 pt-2.5 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>Departure vs Baseline:</span>
+            <span id="kpi-latest-departure" class="font-mono text-rose-400 font-medium">-130.4 mm (-9.2%)</span>
+          </div>
+        </div>
+
+        <!-- Card 3: Wettest & Driest Historical Years -->
+        <div class="glass-card glass-card-hover rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+              <span>Historical Extremes</span>
+              <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+            </div>
+            <div class="mt-2 space-y-1">
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-emerald-400 font-medium">Wettest (<span id="kpi-wettest-year">1961</span>):</span>
+                <span id="kpi-wettest-val" class="font-mono text-white font-bold">1,717.1 mm</span>
+              </div>
+              <div class="flex justify-between items-center text-xs">
+                <span class="text-rose-400 font-medium">Driest (<span id="kpi-driest-year">1972</span>):</span>
+                <span id="kpi-driest-val" class="font-mono text-white font-bold">1,146.5 mm</span>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 pt-2.5 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>Range Spread:</span>
+            <span id="kpi-extreme-spread" class="font-mono text-amber-300 font-medium">570.6 mm</span>
+          </div>
+        </div>
+
+        <!-- Card 4: Highest & Lowest Subdivisions -->
+        <div class="glass-card glass-card-hover rounded-xl p-4 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+              <span>Spatial Gradient Extremes</span>
+              <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+            </div>
+            <div class="mt-2 space-y-1">
+              <div class="text-[11px] truncate" title="Arunachal Pradesh">
+                <span class="text-cyan-400 font-medium">Wettest:</span>
+                <span class="text-white font-semibold">Arunachal</span> (<span class="font-mono text-cyan-300 font-bold">3,419 mm</span>)
+              </div>
+              <div class="text-[11px] truncate" title="West Rajasthan">
+                <span class="text-amber-400 font-medium">Driest:</span>
+                <span class="text-white font-semibold">W. Rajasthan</span> (<span class="font-mono text-amber-300 font-bold">293 mm</span>)
+              </div>
+            </div>
+          </div>
+          <div class="mt-3 pt-2.5 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>Spatial Gradient:</span>
+            <span class="font-mono text-emerald-300 font-medium">11.7x Contrast</span>
+          </div>
+        </div>
+
+        <!-- Card 5: Predictive 2016 Forecast -->
+        <div class="glass-card glass-card-hover rounded-xl p-4 flex flex-col justify-between bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950/40 border-indigo-500/20">
+          <div>
+            <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
+              <span class="text-indigo-300 font-semibold">2016 Point Forecast</span>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-950 text-indigo-300 border border-indigo-700">AR(1) Model</span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+              <span id="kpi-forecast-val" class="text-2xl sm:text-3xl font-extrabold text-indigo-200 font-mono tracking-tight">1,399.8</span>
+              <span class="text-xs text-indigo-300/80 font-semibold">mm</span>
+            </div>
+          </div>
+          <div class="mt-3 pt-2.5 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>95% Uncertainty:</span>
+            <span id="kpi-forecast-ci" class="font-mono text-indigo-300 font-medium">±229.4 mm</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SECTION 2: HISTORICAL RAINFALL ANALYSIS -->
+    <!-- ========================================== -->
+    <section id="section-trends" class="space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
+            Historical Rainfall Trajectory & Anomaly Signals (1901–2015)
+          </h2>
+          <p class="text-xs text-slate-400">115-year annual time-series with 10-year rolling climatological average, baseline normal, and drought/excess bands</p>
+        </div>
+        <div class="flex items-center gap-2 text-xs">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 text-slate-300">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> Actual Rainfall
+          </span>
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 text-slate-300">
+            <span class="w-2.5 h-0.5 bg-amber-400"></span> 10-Yr Moving Average
+          </span>
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 text-slate-300">
+            <span class="w-2.5 h-0.5 border-t border-dashed border-slate-400"></span> Normal Baseline
+          </span>
+        </div>
+      </div>
+
+      <!-- Main Time Series Chart -->
+      <div class="glass-card rounded-2xl p-4 sm:p-5">
+        <div id="chart-annual-trend" style="height: 440px;" class="w-full"></div>
+      </div>
+
+      <!-- Sub-grid: Multi-subdivision comparison & Extreme Anomaly Blotter -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        
+        <!-- Multi-subdivision Comparison -->
+        <div class="glass-card rounded-2xl p-5 lg:col-span-2">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h3 class="text-sm font-semibold text-white">Comparative Subdivisional Trend Overlay</h3>
+              <p class="text-xs text-slate-400">Benchmark the selected subdivision against All-India aggregate and regional peers</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <select id="select-compare-sub" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-2 py-1 text-slate-200">
+                <option value="KERALA">Compare with: Kerala</option>
+                <option value="WEST RAJASTHAN">Compare with: West Rajasthan</option>
+                <option value="EAST UTTAR PRADESH">Compare with: East Uttar Pradesh</option>
+                <option value="COASTAL KARNATAKA">Compare with: Coastal Karnataka</option>
+                <option value="GANGETIC WEST BENGAL">Compare with: Gangetic West Bengal</option>
+              </select>
+            </div>
+          </div>
+          <div id="chart-comparison-trend" style="height: 290px;" class="w-full"></div>
+        </div>
+
+        <!-- Historical Anomaly Leaderboard -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-white mb-1">Drought vs Excess Years Leaderboard</h3>
+            <p class="text-xs text-slate-400 mb-3">Historical departures from climatological normal for <span id="label-anomaly-entity" class="text-cyan-400 font-medium">All India</span></p>
+            
+            <div class="space-y-2">
+              <div class="text-xs font-semibold text-rose-400 uppercase tracking-wider flex items-center justify-between">
+                <span>Top 4 Severe Drought Years</span>
+                <span class="text-[10px] font-normal text-slate-400">Deficit</span>
+              </div>
+              <div id="list-drought-years" class="space-y-1.5 font-mono text-xs">
+                <!-- Dynamically injected -->
+              </div>
+
+              <div class="pt-3 text-xs font-semibold text-emerald-400 uppercase tracking-wider flex items-center justify-between border-t border-slate-800">
+                <span>Top 4 Extreme Flood Years</span>
+                <span class="text-[10px] font-normal text-slate-400">Surplus</span>
+              </div>
+              <div id="list-wet-years" class="space-y-1.5 font-mono text-xs">
+                <!-- Dynamically injected -->
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400">
+            <p><span class="text-amber-400 font-semibold">Note:</span> Severe droughts in India (1918, 1965, 1972, 1987, 2002, 2009, 2014, 2015) coincide strongly with intense Pacific El Niño phases.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SECTION 3: REGIONAL & DISTRICT ANALYSIS -->
+    <!-- ========================================== -->
+    <section id="section-regional" class="space-y-4">
+      <div class="border-b border-slate-800 pb-2">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+          Regional Climatology: Subdivisional Rankings & District Normals
+        </h2>
+        <p class="text-xs text-slate-400">Spatial distribution across all 36 meteorological subdivisions and climatological district normal comparisons</p>
+      </div>
+
+      <!-- Ranked Subdivisions Bar Chart -->
+      <div class="glass-card rounded-2xl p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 class="text-sm font-semibold text-white">Meteorological Subdivisions Ranked by Average Annual Rainfall (mm)</h3>
+            <p class="text-xs text-slate-400">Click on any bar to focus the dashboard on that specific subdivision</p>
+          </div>
+          <div class="flex items-center gap-2 text-xs">
+            <span class="inline-block w-3 h-3 rounded bg-[#06b6d4]"></span> <span class="text-slate-300">>2,500 mm (Per-Humid)</span>
+            <span class="inline-block w-3 h-3 rounded bg-[#3b82f6]"></span> <span class="text-slate-300">1,500–2,500 mm</span>
+            <span class="inline-block w-3 h-3 rounded bg-[#10b981]"></span> <span class="text-slate-300">1,000–1,500 mm</span>
+            <span class="inline-block w-3 h-3 rounded bg-[#f59e0b]"></span> <span class="text-slate-300">500–1,000 mm</span>
+            <span class="inline-block w-3 h-3 rounded bg-[#ef4444]"></span> <span class="text-slate-300"><500 mm (Arid)</span>
+          </div>
+        </div>
+        <div id="chart-subdivision-ranking" style="height: 480px;" class="w-full"></div>
+      </div>
+
+      <!-- 2D Heatmap & District Normals Side-by-Side -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        
+        <!-- Interactive Heatmap: Subdivisions x Years -->
+        <div class="glass-card rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h3 class="text-sm font-semibold text-white">Year × Subdivision Spatio-Temporal Matrix</h3>
+              <p class="text-xs text-slate-400">115-year annual rainfall intensity across all 36 subdivisions</p>
+            </div>
+          </div>
+          <div id="chart-heatmap" style="height: 480px;" class="w-full"></div>
+        </div>
+
+        <!-- District Normals within Subdivision -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="text-sm font-semibold text-white">District Climatological Normals</h3>
+                <p class="text-xs text-slate-400">Comparing district rainfall normals belonging to <span id="label-district-subdivision" class="text-cyan-400 font-medium">All India</span></p>
+              </div>
+              <span id="badge-district-count" class="px-2 py-0.5 rounded text-xs bg-slate-800 text-slate-300 border border-slate-700 font-mono">641 Districts</span>
+            </div>
+            <div id="chart-district-normals" style="height: 380px;" class="w-full"></div>
+          </div>
+          
+          <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>Data Note: District values reflect IMD standard 30-year climatological normals, not annual time-series observations.</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SECTION 4: SEASONAL & MONTHLY DYNAMICS -->
+    <!-- ========================================== -->
+    <section id="section-seasonal" class="space-y-4">
+      <div class="border-b border-slate-800 pb-2">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+          Seasonal Distribution & Monsoonal Teleconnections
+        </h2>
+        <p class="text-xs text-slate-400">Monthly progression (Jan–Dec) and 4-season concentration breakdown (SW Monsoon vs NE Monsoon vs Pre-Monsoon)</p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        
+        <!-- Monthly Distribution Bar Chart -->
+        <div class="glass-card rounded-2xl p-5 lg:col-span-2">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h3 class="text-sm font-semibold text-white">Monthly Climatological Profile (Jan–Dec)</h3>
+              <p class="text-xs text-slate-400">Average precipitation (mm) by month for <span id="label-monthly-entity" class="text-cyan-400 font-medium">All India</span></p>
+            </div>
+            <div class="text-xs font-mono text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded border border-emerald-800">
+              Peak: July & August
+            </div>
+          </div>
+          <div id="chart-monthly-dist" style="height: 360px;" class="w-full"></div>
+        </div>
+
+        <!-- 4-Season Donut & Breakdown -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <h3 class="text-sm font-semibold text-white mb-1">Seasonal Concentration Breakdown</h3>
+            <p class="text-xs text-slate-400 mb-3">Relative percentage contribution by season</p>
+            
+            <div id="chart-seasonal-donut" style="height: 240px;" class="w-full"></div>
+
+            <div class="mt-2 space-y-2 text-xs">
+              <div class="flex justify-between items-center bg-slate-900/60 p-2 rounded-lg border border-slate-800">
+                <span class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                  <span class="text-slate-300 font-medium">Southwest Monsoon (Jun–Sep)</span>
+                </span>
+                <span id="pct-jun-sep" class="font-mono font-bold text-white">75.3%</span>
+              </div>
+              <div class="flex justify-between items-center bg-slate-900/60 p-2 rounded-lg border border-slate-800">
+                <span class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                  <span class="text-slate-300 font-medium">Pre-Monsoon / Summer (Mar–May)</span>
+                </span>
+                <span id="pct-mar-may" class="font-mono font-bold text-white">11.0%</span>
+              </div>
+              <div class="flex justify-between items-center bg-slate-900/60 p-2 rounded-lg border border-slate-800">
+                <span class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
+                  <span class="text-slate-300 font-medium">Post-Monsoon / NE (Oct–Dec)</span>
+                </span>
+                <span id="pct-oct-dec" class="font-mono font-bold text-white">10.9%</span>
+              </div>
+              <div class="flex justify-between items-center bg-slate-900/60 p-2 rounded-lg border border-slate-800">
+                <span class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+                  <span class="text-slate-300 font-medium">Winter (Jan–Feb)</span>
+                </span>
+                <span id="pct-jan-feb" class="font-mono font-bold text-white">2.9%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-800 text-[11px] text-slate-400">
+            <span class="text-cyan-400 font-medium">Regional nuance:</span> Unlike central India, <span class="text-white font-medium">Tamil Nadu</span> receives ~48% of its annual precipitation during the Oct–Dec Northeast Monsoon.
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SECTION 5: FORECASTING & MODEL EVALUATION -->
+    <!-- ========================================== -->
+    <section id="section-forecast" class="space-y-4">
+      <div class="border-b border-slate-800 pb-2">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+              Predictive Modeling & 2016 Forecast Evaluation
+            </h2>
+            <p class="text-xs text-slate-400">Chronological train/test split (Train: 1901–2000, Test: 2001–2015) benchmarking Baseline Climatological Normal, Linear Trend, and Autoregressive AR(1)</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-1 rounded bg-amber-950/80 text-amber-300 border border-amber-800 text-xs font-mono">Forecast Horizon: Year 2016</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Forecast Evaluation Comparison Table & Metrics -->
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        
+        <!-- Model Performance Table -->
+        <div class="glass-card rounded-2xl p-5 lg:col-span-3">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h3 class="text-sm font-semibold text-white">Chronological Out-of-Sample Test Evaluation (2001–2015 Test Window)</h3>
+              <p class="text-xs text-slate-400">Trained strictly on historical records up to 2000 (no lookahead data leakage)</p>
+            </div>
+            <span class="text-xs font-mono text-cyan-400 bg-cyan-950/60 px-2.5 py-1 rounded border border-cyan-800">
+              Evaluated on: <span id="label-forecast-entity">All India</span>
+            </span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+                <tr>
+                  <th class="py-2.5 px-3 font-semibold">Forecasting Model</th>
+                  <th class="py-2.5 px-3 font-semibold">Test MAE (mm)</th>
+                  <th class="py-2.5 px-3 font-semibold">Test RMSE (mm)</th>
+                  <th class="py-2.5 px-3 font-semibold">Model Parameter</th>
+                  <th class="py-2.5 px-3 font-semibold">2016 Point Forecast</th>
+                  <th class="py-2.5 px-3 font-semibold">80% Interval</th>
+                  <th class="py-2.5 px-3 font-semibold">95% Interval</th>
+                </tr>
+              </thead>
+              <tbody id="table-model-eval" class="divide-y divide-slate-800/60 font-mono">
+                <!-- Injected dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <div id="chart-forecast-test" style="height: 380px;" class="w-full mt-4"></div>
+        </div>
+
+        <!-- Rigorous Climatological Limitations & Meteorological Honesty -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between bg-slate-900/90 border-slate-800">
+          <div>
+            <div class="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider mb-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+              Analytical Caveat & Climatological Limits
+            </div>
+            
+            <div class="space-y-3 text-xs text-slate-300 leading-relaxed">
+              <p>
+                <strong class="text-white">Why is univariate $R^2$ low?</strong> Indian monsoon annual precipitation exhibits minimal serial autocorrelation ($\phi \approx 0.0$ to $0.2$). Precipitation variance is driven primarily by planetary ocean-atmosphere coupled oscillations:
+              </p>
+              <ul class="list-disc list-inside space-y-1 text-slate-400 text-[11px]">
+                <li><strong class="text-slate-200">ENSO</strong> (El Niño-Southern Oscillation)</li>
+                <li><strong class="text-slate-200">IOD</strong> (Indian Ocean Dipole)</li>
+                <li><strong class="text-slate-200">MJO</strong> (Madden-Julian Oscillation)</li>
+              </ul>
+              <p class="text-[11px] text-slate-400">
+                Because these teleconnections operate on non-linear physical cycles rather than univariate autoregression, simple linear extrapolation cannot reliably forecast extreme drought or flood swings.
+              </p>
+              <div class="p-2.5 rounded-lg bg-amber-950/40 border border-amber-800/60 text-[11px] text-amber-200">
+                <strong>Model Conclusion:</strong> The 30-year IMD Climatological Normal baseline achieves comparable or superior test RMSE to linear regression in most subdivisions, serving as the most defensible baseline forecast for 2016.
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-800 text-[10px] text-slate-500 font-mono">
+            *Forecast is strictly for historical verification year 2016 (following 2015 historical endpoint), not a 2027 projection.
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- SECTION 6: EVIDENCE-BASED FINDINGS & VALIDATION -->
+    <!-- ========================================== -->
+    <section id="section-insights" class="space-y-4">
+      <div class="border-b border-slate-800 pb-2">
+        <h2 class="text-base font-bold text-white flex items-center gap-2">
+          <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          Evidence-Based Climatological Insights & Dataset Validation
+        </h2>
+        <p class="text-xs text-slate-400">Synthesized statistical findings validated against the 1901–2015 historical time-series and district climatological normals</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <!-- Insight 1: Monsoon Concentration -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 text-cyan-400 text-xs font-bold uppercase tracking-wider mb-2">
+              <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+              1. Extreme Seasonal Concentration
+            </div>
+            <h4 class="text-sm font-semibold text-white mb-2">75.3% of Rainfall in 122 Days</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Nationwide, <strong>1,062.3 mm out of 1,411.0 mm</strong> falls within the four-month June–September Southwest Monsoon window. However, the peninsular southeast (Tamil Nadu) deviates dramatically, receiving <strong>47.7%</strong> of its rainfall in the Oct–Dec Northeast Monsoon season due to retreating monsoonal troughs over the Bay of Bengal.
+            </p>
+          </div>
+          <div class="mt-4 pt-2.5 border-t border-slate-800 text-[11px] text-cyan-300 font-mono">
+            SW Monsoon Share: 75.29% | NE: 10.87%
+          </div>
+        </div>
+
+        <!-- Insight 2: Spatial Heterogeneity -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-2">
+              <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+              2. Orographic Spatial Gradient
+            </div>
+            <h4 class="text-sm font-semibold text-white mb-2">11.7-Fold Geographic Contrast</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              India exhibits massive orographic precipitation gradients: Western Ghats windward coastal tracts (Coastal Karnataka at <strong>3,408.4 mm</strong>, Konkan & Goa at <strong>2,977.7 mm</strong>) and northeastern Himalayan foothills (Arunachal Pradesh at <strong>3,418.9 mm</strong>) receive over an order of magnitude more rain than the rain-shadow Thar desert (West Rajasthan at <strong>292.7 mm</strong>).
+            </p>
+          </div>
+          <div class="mt-4 pt-2.5 border-t border-slate-800 text-[11px] text-indigo-300 font-mono">
+            Max: 3,418.9 mm vs Min: 292.7 mm
+          </div>
+        </div>
+
+        <!-- Insight 3: Decadal Drought Teleconnections -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 text-rose-400 text-xs font-bold uppercase tracking-wider mb-2">
+              <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+              3. Pan-Indian Drought Clustering
+            </div>
+            <h4 class="text-sm font-semibold text-white mb-2">Severe Deficits Clustered by ENSO</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Historical all-India drought years (1918 at <strong>-24.9%</strong>, 1972 at <strong>-18.7%</strong>, 1965 at <strong>-17.5%</strong>, 1987 at <strong>-14.8%</strong>, 2002 at <strong>-16.1%</strong>, 2014 at <strong>-10.4%</strong>, 2015 at <strong>-9.2%</strong>) correlate closely with strong El Niño phases in the equatorial Pacific, demonstrating that multi-year volatility is climate-cycle driven rather than random walk.
+            </p>
+          </div>
+          <div class="mt-4 pt-2.5 border-t border-slate-800 text-[11px] text-rose-300 font-mono">
+            Driest Historical Year: 1972 (1,146.5 mm)
+          </div>
+        </div>
+
+        <!-- Insight 4: Data Validation & Integrity -->
+        <div class="glass-card rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              4. Data Validation & Integrity
+            </div>
+            <h4 class="text-sm font-semibold text-white mb-2">Rigorous Missingness Handling</h4>
+            <p class="text-xs text-slate-400 leading-relaxed">
+              Exactly 26 annual records and 63 monthly values were missing in the historical series, isolated to 6 island/remote subdivisions (Lakshadweep, Andaman & Nicobar, Arunachal Pradesh). Zero-replacement was strictly avoided (which would falsely simulate absolute drought); instead, climatological monthly median imputation was applied, preserving true series fidelity.
+            </p>
+          </div>
+          <div class="mt-4 pt-2.5 border-t border-slate-800 text-[11px] text-emerald-300 font-mono">
+            Zero Null Distortions | 100% District Mapped
+          </div>
+        </div>
+
+      </div>
+
+      <!-- District Normal Reference Explorer Table -->
+      <div class="glass-card rounded-2xl p-5">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 class="text-sm font-semibold text-white">District Climatological Normals Reference Table</h3>
+            <p class="text-xs text-slate-400">Search and sort across all 641 districts and 35 States/UTs</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <input id="input-district-search" type="text" placeholder="Search district or state..." class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-64">
+          </div>
+        </div>
+
+        <div class="max-h-72 overflow-y-auto border border-slate-800 rounded-lg">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900 sticky top-0 text-slate-400 uppercase tracking-wider text-[11px] border-b border-slate-800">
+              <tr>
+                <th class="py-2.5 px-3 font-semibold">State / UT</th>
+                <th class="py-2.5 px-3 font-semibold">District Name</th>
+                <th class="py-2.5 px-3 font-semibold">IMD Subdivision</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Annual Normal (mm)</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Monsoon (Jun–Sep)</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Pre-Monsoon</th>
+                <th class="py-2.5 px-3 font-semibold text-right">Post-Monsoon</th>
+              </tr>
+            </thead>
+            <tbody id="table-district-rows" class="divide-y divide-slate-800/60 font-mono text-slate-300">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-800 bg-[#070b14] py-6 px-4 sm:px-6 mt-12 text-center text-xs text-slate-500">
+    <div class="max-w-[1700px] mx-auto flex flex-wrap items-center justify-between gap-4">
+      <p>Source Data: India Meteorological Department (IMD) Historical Series (1901–2015) & District Normal Reference (1951–2000 standard)</p>
+      <p class="text-slate-400 font-mono">Clario Research Intelligence • Antigravity Agent Engine</p>
+    </div>
+  </footer>
+
+  <!-- ================================================================= -->
+  <!-- DASHBOARD REACTIVE LOGIC & PLOTLY INTEGRATION -->
+  <!-- ================================================================= -->
+  <script>
+    (function() {
+      // Guard against missing data bundle
+      if (!window.RAINFALL_DATA) {
+        console.error("RAINFALL_DATA not found. Please ensure dashboard_data.js is loaded.");
+        return;
+      }
+
+      var dataStore = window.RAINFALL_DATA;
+      var activeSubdivision = "ALL INDIA";
+      var activeSeason = "ANNUAL";
+      var yearMin = 1901;
+      var yearMax = 2015;
+      var selectedDistrict = "ALL";
+      var searchDistrictQuery = "";
+
+      // DOM Elements
+      var elSubSelect = document.getElementById("filter-subdivision");
+      var elEpochPreset = document.getElementById("filter-epoch-preset");
+      var elYearStart = document.getElementById("input-year-start");
+      var elYearEnd = document.getElementById("input-year-end");
+      var elSeasonSelect = document.getElementById("filter-season");
+      var elDistrictSelect = document.getElementById("filter-district-focus");
+      var elResetBtn = document.getElementById("btn-reset-filters");
+      var elDistrictSearch = document.getElementById("input-district-search");
+      var elCompareSelect = document.getElementById("select-compare-sub");
+
+      // 1. Initialize Subdivision Dropdown
+      function initDropdowns() {
+        dataStore.subdivisions.forEach(function(sub) {
+          var opt = document.createElement("option");
+          opt.value = sub;
+          opt.textContent = sub;
+          elSubSelect.appendChild(opt);
+        });
+        updateDistrictDropdown();
+      }
+
+      function updateDistrictDropdown() {
+        elDistrictSelect.innerHTML = '<option value="ALL">All Associated Districts (Normals)</option>';
+        var filteredDists = dataStore.district_normals;
+        if (activeSubdivision !== "ALL INDIA") {
+          filteredDists = filteredDists.filter(function(d) {
+            return d.subdivision === activeSubdivision;
+          });
+        }
+        filteredDists.sort(function(a, b) { return a.district.localeCompare(b.district); });
+        filteredDists.forEach(function(d) {
+          var opt = document.createElement("option");
+          opt.value = d.district;
+          opt.textContent = d.district + " (" + d.state + ")";
+          elDistrictSelect.appendChild(opt);
+        });
+      }
+
+      // Helper: Get active series filtered by years
+      function getActiveRecords() {
+        var allRecs = dataStore.historical[activeSubdivision] || [];
+        return allRecs.filter(function(r) {
+          return r.year >= yearMin && r.year <= yearMax;
+        });
+      }
+
+      // Helper: Extract value based on current season/month filter
+      function getMetricValue(rec) {
+        if (activeSeason === "ANNUAL") return rec.annual;
+        if (activeSeason.indexOf("m_") === 0) {
+          var m = activeSeason.replace("m_", "");
+          return rec.months[m] || 0;
+        }
+        return rec.seasons[activeSeason] || 0;
+      }
+
+      // 2. Update KPI Cards
+      function updateKPIs() {
+        var recs = getActiveRecords();
+        if (recs.length === 0) return;
+
+        document.getElementById("kpi-target-label").textContent = activeSubdivision;
+        document.getElementById("kpi-temporal-span").textContent = "Epoch: " + yearMin + " – " + yearMax;
+
+        var vals = recs.map(getMetricValue);
+        var sumVals = vals.reduce(function(a, b) { return a + b; }, 0);
+        var meanVal = sumVals / vals.length;
+
+        // Standard deviation & CV
+        var variance = vals.reduce(function(a, b) { return a + Math.pow(b - meanVal, 2); }, 0) / vals.length;
+        var stdVal = Math.sqrt(variance);
+        var cvVal = (stdVal / meanVal) * 100;
+
+        document.getElementById("kpi-mean-annual").textContent = meanVal.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1});
+        document.getElementById("kpi-cv-annual").textContent = cvVal.toFixed(1) + "%";
+
+        // Latest year in range
+        var latestRec = recs[recs.length - 1];
+        var latestVal = getMetricValue(latestRec);
+        var latestDeparture = latestVal - meanVal;
+        var latestPct = (latestDeparture / meanVal) * 100;
+
+        document.getElementById("kpi-latest-year").textContent = latestRec.year;
+        document.getElementById("kpi-latest-annual").textContent = latestVal.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1});
+        
+        var depText = (latestDeparture >= 0 ? "+" : "") + latestDeparture.toFixed(1) + " mm (" + (latestPct >= 0 ? "+" : "") + latestPct.toFixed(1) + "%)";
+        var elDep = document.getElementById("kpi-latest-departure");
+        elDep.textContent = depText;
+
+        var elBadge = document.getElementById("kpi-anomaly-badge");
+        if (latestDeparture >= 0) {
+          elBadge.textContent = "Surplus";
+          elBadge.className = "px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-950/80 text-emerald-300 border border-emerald-800";
+          elDep.className = "font-mono text-emerald-400 font-medium";
+        } else {
+          elBadge.textContent = "Deficit";
+          elBadge.className = "px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-950/80 text-rose-300 border border-rose-800";
+          elDep.className = "font-mono text-rose-400 font-medium";
+        }
+
+        // Wettest & Driest
+        var sortedPairs = recs.map(function(r) { return { year: r.year, val: getMetricValue(r) }; });
+        sortedPairs.sort(function(a, b) { return a.val - b.val; });
+        var driest = sortedPairs[0];
+        var wettest = sortedPairs[sortedPairs.length - 1];
+
+        document.getElementById("kpi-driest-year").textContent = driest.year;
+        document.getElementById("kpi-driest-val").textContent = driest.val.toFixed(1) + " mm";
+        document.getElementById("kpi-wettest-year").textContent = wettest.year;
+        document.getElementById("kpi-wettest-val").textContent = wettest.val.toFixed(1) + " mm";
+        document.getElementById("kpi-extreme-spread").textContent = (wettest.val - driest.val).toFixed(1) + " mm";
+
+        // Forecast Card
+        var modelInfo = dataStore.models[activeSubdivision];
+        if (modelInfo && modelInfo.autoregressive) {
+          var ar = modelInfo.autoregressive;
+          document.getElementById("kpi-forecast-val").textContent = ar.forecast_2016.toFixed(1);
+          var halfCi = (ar.ci95[1] - ar.forecast_2016);
+          document.getElementById("kpi-forecast-ci").textContent = "±" + halfCi.toFixed(1) + " mm";
+        }
+
+        // Update Anomaly List
+        updateAnomalyLeaderboard(sortedPairs, meanVal);
+      }
+
+      function updateAnomalyLeaderboard(sortedPairs, meanVal) {
+        document.getElementById("label-anomaly-entity").textContent = activeSubdivision;
+        var driest4 = sortedPairs.slice(0, 4);
+        var wettest4 = sortedPairs.slice(-4).reverse();
+
+        var elDrought = document.getElementById("list-drought-years");
+        elDrought.innerHTML = "";
+        driest4.forEach(function(item) {
+          var pct = ((item.val - meanVal) / meanVal) * 100;
+          var div = document.createElement("div");
+          div.className = "flex justify-between items-center text-slate-300 bg-slate-900/50 px-2 py-1 rounded";
+          div.innerHTML = "<span class='text-white font-semibold'>" + item.year + "</span><span>" + item.val.toFixed(1) + " mm</span><span class='text-rose-400 font-bold'>" + pct.toFixed(1) + "%</span>";
+          elDrought.appendChild(div);
+        });
+
+        var elWet = document.getElementById("list-wet-years");
+        elWet.innerHTML = "";
+        wettest4.forEach(function(item) {
+          var pct = ((item.val - meanVal) / meanVal) * 100;
+          var div = document.createElement("div");
+          div.className = "flex justify-between items-center text-slate-300 bg-slate-900/50 px-2 py-1 rounded";
+          div.innerHTML = "<span class='text-white font-semibold'>" + item.year + "</span><span>" + item.val.toFixed(1) + " mm</span><span class='text-emerald-400 font-bold'>+" + pct.toFixed(1) + "%</span>";
+          elWet.appendChild(div);
+        });
+      }
+
+      // Common Plotly Dark Layout
+      var plotlyDarkLayout = {
+        paper_bgcolor: "transparent",
+        plot_bgcolor: "transparent",
+        font: { family: "system-ui, -apple-system, sans-serif", color: "#94a3b8", size: 11 },
+        margin: { l: 55, r: 25, t: 30, b: 45 },
+        hovermode: "x unified",
+        hoverlabel: { bgcolor: "#0f172a", bordercolor: "#334155", font: { color: "#f8fafc" } },
+        xaxis: {
+          gridcolor: "#1e293b",
+          zerolinecolor: "#334155",
+          tickcolor: "#334155"
+        },
+        yaxis: {
+          gridcolor: "#1e293b",
+          zerolinecolor: "#334155",
+          tickcolor: "#334155"
+        }
+      };
+      var plotlyConfig = { responsive: true, displayModeBar: false };
+
+      // 3. Render Historical Annual Trend Line Chart
+      function renderAnnualTrendChart() {
+        var recs = getActiveRecords();
+        var years = recs.map(function(r) { return r.year; });
+        var actuals = recs.map(getMetricValue);
+
+        // 10-year rolling mean
+        var rolling10 = [];
+        for (var i = 0; i < actuals.length; i++) {
+          var startIdx = Math.max(0, i - 9);
+          var slice = actuals.slice(startIdx, i + 1);
+          var avg = slice.reduce(function(a, b) { return a + b; }, 0) / slice.length;
+          rolling10.push(avg);
+        }
+
+        // Climatological Normal & Drought / Excess bands (±10% and ±20%)
+        var fullMean = actuals.reduce(function(a, b) { return a + b; }, 0) / actuals.length;
+        var meanLine = years.map(function() { return fullMean; });
+        var droughtLine = years.map(function() { return fullMean * 0.9; });
+        var severeDroughtLine = years.map(function() { return fullMean * 0.8; });
+        var excessLine = years.map(function() { return fullMean * 1.1; });
+
+        var traces = [
+          {
+            x: years,
+            y: actuals,
+            type: "bar",
+            name: "Actual Rainfall (mm)",
+            marker: {
+              color: actuals.map(function(val) {
+                if (val < fullMean * 0.8) return "#ef4444";
+                if (val < fullMean * 0.9) return "#f97316";
+                if (val > fullMean * 1.1) return "#10b981";
+                return "#0284c7";
+              }),
+              opacity: 0.75
+            },
+            hovertemplate: "Year: %{x}<br>Rainfall: %{y:.1f} mm<extra></extra>"
+          },
+          {
+            x: years,
+            y: rolling10,
+            type: "scatter",
+            mode: "lines",
+            name: "10-Year Rolling Mean",
+            line: { color: "#f59e0b", width: 2.5 },
+            hovertemplate: "10-Yr MA: %{y:.1f} mm<extra></extra>"
+          },
+          {
+            x: years,
+            y: meanLine,
+            type: "scatter",
+            mode: "lines",
+            name: "Normal Baseline (" + fullMean.toFixed(1) + " mm)",
+            line: { color: "#94a3b8", width: 1.5, dash: "dash" },
+            hovertemplate: "Baseline Normal: %{y:.1f} mm<extra></extra>"
+          },
+          {
+            x: years,
+            y: droughtLine,
+            type: "scatter",
+            mode: "lines",
+            name: "IMD Moderate Deficit (-10%)",
+            line: { color: "#f97316", width: 1, dash: "dot" },
+            visible: "legendonly"
+          },
+          {
+            x: years,
+            y: severeDroughtLine,
+            type: "scatter",
+            mode: "lines",
+            name: "IMD Severe Deficit (-20%)",
+            line: { color: "#ef4444", width: 1, dash: "dot" },
+            visible: "legendonly"
+          }
+        ];
+
+        var layout = JSON.parse(JSON.stringify(plotlyDarkLayout));
+        layout.title = {
+          text: activeSubdivision + " — Annual Rainfall Trajectory (" + yearMin + "–" + yearMax + ")",
+          font: { color: "#e2e8f0", size: 14 }
+        };
+        layout.yaxis.title = "Precipitation (mm)";
+        layout.legend = { orientation: "h", y: -0.2, font: { color: "#cbd5e1" } };
+
+        Plotly.newPlot("chart-annual-trend", traces, layout, plotlyConfig);
+      }
+
+      // 4. Render Comparative Trend Overlay
+      function renderComparisonTrend() {
+        var compSub = elCompareSelect.value || "KERALA";
+        var recsMain = getActiveRecords();
+        var recsComp = (dataStore.historical[compSub] || []).filter(function(r) {
+          return r.year >= yearMin && r.year <= yearMax;
+        });
+
+        var years = recsMain.map(function(r) { return r.year; });
+        var valsMain = recsMain.map(getMetricValue);
+        var valsComp = recsComp.map(getMetricValue);
+
+        var traces = [
+          {
+            x: years,
+            y: valsMain,
+            type: "scatter",
+            mode: "lines",
+            name: activeSubdivision,
+            line: { color: "#06b6d4", width: 2.2 }
+          },
+          {
+            x: years,
+            y: valsComp,
+            type: "scatter",
+            mode: "lines",
+            name: compSub,
+            line: { color: "#a855f7", width: 2.2 }
+          }
+        ];
+
+        var layout = JSON.parse(JSON.stringify(plotlyDarkLayout));
+        layout.margin.t = 25;
+        layout.yaxis.title = "Rainfall (mm)";
+        layout.legend = { orientation: "h", y: 1.15 };
+
+        Plotly.newPlot("chart-comparison-trend", traces, layout, plotlyConfig);
+      }
+
+      // 5. Render Ranked Subdivisions Bar Chart
+      function renderSubdivisionRanking() {
+        var rankings = dataStore.sub_rankings;
+        var names = rankings.map(function(r) { return r.subdivision; });
+        var means = rankings.map(function(r) { return r.mean_annual; });
+
+        var colors = names.map(function(n) {
+          if (n === activeSubdivision) return "#ffffff"; // Highlight active selection
+          var val = dataStore.historical[n] ? dataStore.historical[n][0].annual : 1000;
+          var found = rankings.find(function(x) { return x.subdivision === n; });
+          var m = found ? found.mean_annual : 1000;
+          if (m >= 2500) return "#06b6d4";
+          if (m >= 1500) return "#3b82f6";
+          if (m >= 1000) return "#10b981";
+          if (m >= 500) return "#f59e0b";
+          return "#ef4444";
+        });
+
+        var trace = {
+          x: names,
+          y: means,
+          type: "bar",
+          marker: { color: colors, opacity: 0.9 },
+          hovertemplate: "<b>%{x}</b><br>Historical Mean: %{y:.1f} mm<extra></extra>"
+        };
+
+        var layout = JSON.parse(JSON.stringify(plotlyDarkLayout));
+        layout.margin.b = 130;
+        layout.xaxis.tickangle = -45;
+        layout.yaxis.title = "Annual Climatological Mean (mm)";
+
+        Plotly.newPlot("chart-subdivision-ranking", [trace], layout, plotlyConfig);
+
+        var plotDiv = document.getElementById("chart-subdivision-ranking");
+        plotDiv.on("plotly_click", function(data) {
+          if (data && data.points && data.points.length > 0) {
+            var clickedSub = data.points[0].x;
+            elSubSelect.value = clickedSub;
+            activeSubdivision = clickedSub;
+            updateDistrictDropdown();
+            refreshAllViews();
+          }
+        });
+      }
+
+      // 6. Render 2D Heatmap (Subdivisions x Years)
+      function renderHeatmap() {
+        var subList = dataStore.subdivisions;
+        var years = [];
+        for (var y = 1901; y <= 2015; y++) years.push(y);
+
+        var zMatrix = [];
+        subList.forEach(function(sub) {
+          var recs = dataStore.historical[sub] || [];
+          var rowMap = {};
+          recs.forEach(function(r) { rowMap[r.year] = r.annual; });
+          var rowVals = years.map(function(yr) { return rowMap[yr] !== undefined ? rowMap[yr] : null; });
+          zMatrix.push(rowVals);
+        });
+
+        var trace = {
+          x: years,
+          y: subList,
+          z: zMatrix,
+          type: "heatmap",
+          colorscale: [
+            [0.0, "#0b0f19"],
+            [0.1, "#7f1d1d"],
+            [0.25, "#d97706"],
+            [0.45, "#059669"],
+            [0.65, "#0284c7"],
+            [0.85, "#4338ca"],
+            [1.0, "#38bdf8"]
+          ],
+          colorbar: {
+            title: "mm",
+            tickfont: { color: "#cbd5e1", size: 10 },
+            titlefont: { color: "#e2e8f0", size: 11 }
+          },
+          hovertemplate: "Subdivision: %{y}<br>Year: %{x}<br>Rainfall: %{z:.1f} mm<extra></extra>"
+        };
+
+        var layout = JSON.parse(JSON.stringify(plotlyDarkLayout));
+        layout.margin.l = 150;
+        layout.margin.b = 40;
+        layout.yaxis.tickfont = { size: 9, color: "#cbd5e1" };
+
+        Plotly.newPlot("chart-heatmap", [trace], layout, plotlyConfig);
+      }
+
+      // 7. Render District Normals Comparison
+      function renderDistrictNormals() {
+        document.getElementById("label-district-subdivision").textContent = activeSubdivision;
+        var dists = dataStore.district_normals;
+        if (activeSubdivision !== "ALL INDIA") {
+          dists = dists.filter(function(d) { return d.subdivision === activeSubdivision; });
+        }
+        document.getElementById("badge-district-count").textContent = dists.length + " Districts";
+
+        var sortedDists = dists.slice().sort(function(a, b) { return a.annual - b.annual; });
+        // Cap to 25 districts for chart clarity if list is huge
+        var displayDists = sortedDists.length > 30 ? sortedDists.slice(-30) : sortedDists;
+
+        var trace = {
+          y: displayDists.map(function(d) { return d.district + " (" + d.state + ")"; }),
+          x: displayDists.map(function(d) { return d.annual; }),
+          type: "bar",
+          orientation: "h",
+          marker: {
+            color: displayDists.map(function(d) {
+              return d.annual > 2000 ? "#06b6d4" : (d.annual > 1000 ? "#3b82f6" : "#f59e0b");
+            })
+          },
+          hovertemplate: "%{y}<br>Climatological Normal: %{x:.1f} mm<extra></extra>"
+        };
+
+        var layout = JSON.parse(JSON.stringify(plotlyDarkLayout));
+        layout.margin.l = 140;
+        layout.yaxis.tickfont = { size: 9 };
+        layout.xaxis.title = "Annual Climatological Normal (mm)";
+
+        Plotly.newPlot("chart-district-normals", [trace], layout, plotlyConfig);
+      }
+
+      // 8. Render Monthly Progression Bar Chart
+      function renderMonthlyChart() {
+        document.getElementById("label-monthly-entity").textContent = activeSubdivision;
+        var recs = getActiveRecords();
+        var monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+        var monthLabels = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+        var monthlyMeans = monthNames.map(function(m) {
+          var vals = recs.map(function(r) { return r.months[m] || 0; });
+          return vals.reduce(function(a, b) { return a + b; }, 0) / vals.length;
+        });
+
+        var trace = {
+          x: monthLabels,
+          y: monthlyMeans,
+          type: "bar",
+          marker: {
+            color: monthNames.map(function(m) {
+              if (["JUN", "JUL", "AUG", "SEP"].indexOf(m) >= 0) return "#06b6d4"; // SW Monsoon
+              if (["MAR", "APR", "MAY"].indexOf(m) >= 0) return "#f59e0b"; // Pre-Monsoon
+              if (["OCT", "NOV", "DEC"].indexOf(m) >= 0) return "#6366f1"; // Post-Monsoon
+              return "#64748b"; // Winter
+            })
+          },
+          hovertemplate: "%{x}<br>Mean Rainfall: %{y:.1f} mm<extra></extra>"
+        };
+
+        var layout = JSON.parse(JSON.stringify(plotlyDarkLayout));
+        layout.yaxis.title = "Precipitation (mm)";
+
+        Plotly.newPlot("chart-monthly-dist", [trace], layout, plotlyConfig);
+      }
+
+      // 9. Render Seasonal Share Donut Chart
+      function renderSeasonalDonut() {
+        var recs = getActiveRecords();
+        var seasons = ["Jun-Sep", "Mar-May", "Oct-Dec", "Jan-Feb"];
+        var seasonLabels = ["SW Monsoon (Jun–Sep)", "Pre-Monsoon (Mar–May)", "Post-Monsoon (Oct–Dec)", "Winter (Jan–Feb)"];
+
+        var seasonTotals = seasons.map(function(s) {
+          var vals = recs.map(function(r) { return r.seasons[s] || 0; });
+          return vals.reduce(function(a, b) { return a + b; }, 0);
+        });
+        var grandTotal = seasonTotals.reduce(function(a, b) { return a + b; }, 0);
+
+        var pcts = seasonTotals.map(function(t) { return (t / grandTotal) * 100; });
+        document.getElementById("pct-jun-sep").textContent = pcts[0].toFixed(1) + "%";
+        document.getElementById("pct-mar-may").textContent = pcts[1].toFixed(1) + "%";
+        document.getElementById("pct-oct-dec").textContent = pcts[2].toFixed(1) + "%";
+        document.getElementById("pct-jan-feb").textContent = pcts[3].toFixed(1) + "%";
+
+        var trace = {
+          labels: seasonLabels,
+          values: seasonTotals,
+          type: "pie",
+          hole: 0.6,
+          marker: {
+            colors: ["#06b6d4", "#f59e0b", "#6366f1", "#64748b"]
+          },
+          textinfo: "percent",
+          hoverinfo: "label+value+percent",
+          hovertemplate: "%{label}<br>Total: %{value:.1f} mm<br>Share: %{percent}<extra></extra>"
+        };
+
+        var layout = JSON.parse(JSON.stringify(plotlyDarkLayout));
+        layout.showlegend = false;
+        layout.margin = { l: 15, r: 15, t: 15, b: 15 };
+
+        Plotly.newPlot("chart-seasonal-donut", [trace], layout, plotlyConfig);
+      }
+
+      // 10. Render Forecasting Evaluation & Projection Plot
+      function renderForecastingSection() {
+        document.getElementById("label-forecast-entity").textContent = activeSubdivision;
+        var modelData = dataStore.models[activeSubdivision];
+        if (!modelData) return;
+
+        var testYears = modelData.test_years;
+        var actuals = modelData.test_actuals;
+        var base = modelData.baseline;
+        var lr = modelData.linear_trend;
+        var ar = modelData.autoregressive;
+
+        // Populate Model Evaluation Comparison Table
+        var tbody = document.getElementById("table-model-eval");
+        tbody.innerHTML = "";
+
+        var rows = [
+          {
+            name: "1. Climatological Normal Baseline",
+            mae: base.mae,
+            rmse: base.rmse,
+            param: "30-Yr Mean (" + base.forecast_2016.toFixed(1) + " mm)",
+            f2016: base.forecast_2016,
+            ci80: "—",
+            ci95: "—"
+          },
+          {
+            name: "2. Linear Regression Trend",
+            mae: lr.mae,
+            rmse: lr.rmse,
+            param: "Slope: " + (lr.slope_mm_yr >= 0 ? "+" : "") + lr.slope_mm_yr.toFixed(3) + " mm/yr",
+            f2016: lr.forecast_2016,
+            ci80: "—",
+            ci95: "—"
+          },
+          {
+            name: "3. Autoregressive AR(1)",
+            mae: ar.mae,
+            rmse: ar.rmse,
+            param: "Lag-1 AR coeff φ = " + ar.phi.toFixed(3),
+            f2016: ar.forecast_2016,
+            ci80: "[" + ar.ci80[0].toFixed(1) + ", " + ar.ci80[1].toFixed(1) + "]",
+            ci95: "[" + ar.ci95[0].toFixed(1) + ", " + ar.ci95[1].toFixed(1) + "]"
+          }
+        ];
+
+        rows.forEach(function(r, idx) {
+          var tr = document.createElement("tr");
+          tr.className = idx === 2 ? "bg-indigo-950/20 text-indigo-200" : "hover:bg-slate-900/40";
+          tr.innerHTML = "<td class='py-2.5 px-3 font-semibold " + (idx === 2 ? "text-indigo-300" : "text-white") + "'>" + r.name + "</td>" +
+                         "<td class='py-2.5 px-3'>" + r.mae.toFixed(1) + "</td>" +
+                         "<td class='py-2.5 px-3 font-bold text-white'>" + r.rmse.toFixed(1) + "</td>" +
+                         "<td class='py-2.5 px-3 text-slate-400'>" + r.param + "</td>" +
+                         "<td class='py-2.5 px-3 font-bold text-cyan-300'>" + r.f2016.toFixed(1) + " mm</td>" +
+                         "<td class='py-2.5 px-3 text-slate-300'>" + r.ci80 + "</td>" +
+                         "<td class='py-2.5 px-3 text-slate-400'>" + r.ci95 + "</td>";
+          tbody.appendChild(tr);
+        });
+
+        // Test Actual vs Predicted Chart + 2016 Forecast
+        var plotYears = testYears.concat([2016]);
+        var traces = [
+          {
+            x: testYears,
+            y: actuals,
+            type: "scatter",
+            mode: "lines+markers",
+            name: "Actual Test Records (2001–2015)",
+            line: { color: "#ffffff", width: 2.5 },
+            marker: { size: 6, color: "#ffffff" }
+          },
+          {
+            x: testYears,
+            y: base.test_preds,
+            type: "scatter",
+            mode: "lines",
+            name: "Baseline Normal (MAE: " + base.mae.toFixed(1) + ")",
+            line: { color: "#94a3b8", width: 1.5, dash: "dash" }
+          },
+          {
+            x: testYears,
+            y: lr.test_preds,
+            type: "scatter",
+            mode: "lines",
+            name: "Linear Trend (MAE: " + lr.mae.toFixed(1) + ")",
+            line: { color: "#f59e0b", width: 1.8 }
+          },
+          {
+            x: testYears,
+            y: ar.test_preds,
+            type: "scatter",
+            mode: "lines+markers",
+            name: "AR(1) Model (MAE: " + ar.mae.toFixed(1) + ")",
+            line: { color: "#06b6d4", width: 2.2 },
+            marker: { size: 5, color: "#06b6d4" }
+          },
+          {
+            x: [2016],
+            y: [ar.forecast_2016],
+            type: "scatter",
+            mode: "markers",
+            name: "2016 Forecast (" + ar.forecast_2016.toFixed(1) + " mm)",
+            marker: { size: 10, color: "#a855f7", symbol: "diamond" },
+            error_y: {
+              type: "data",
+              array: [ar.ci95[1] - ar.forecast_2016],
+              arrayminus: [ar.forecast_2016 - ar.ci95[0]],
+              color: "#a855f7",
+              thickness: 2,
+              width: 8
+            }
+          }
+        ];
+
+        var layout = JSON.parse(JSON.stringify(plotlyDarkLayout));
+        layout.title = {
+          text: "Chronological Test Fit (2001–2015) & 2016 Forecast with 95% Uncertainty Cone",
+          font: { color: "#e2e8f0", size: 13 }
+        };
+        layout.yaxis.title = "Precipitation (mm)";
+        layout.xaxis.tickvals = [2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2016];
+        layout.legend = { orientation: "h", y: -0.2 };
+
+        Plotly.newPlot("chart-forecast-test", traces, layout, plotlyConfig);
+      }
+
+      // 11. Render District Reference Table
+      function renderDistrictTable() {
+        var query = searchDistrictQuery.toLowerCase().trim();
+        var dists = dataStore.district_normals;
+        if (query) {
+          dists = dists.filter(function(d) {
+            return d.district.toLowerCase().indexOf(query) >= 0 ||
+                   d.state.toLowerCase().indexOf(query) >= 0 ||
+                   d.subdivision.toLowerCase().indexOf(query) >= 0;
+          });
+        } else if (activeSubdivision !== "ALL INDIA") {
+          dists = dists.filter(function(d) { return d.subdivision === activeSubdivision; });
+        }
+
+        var tbody = document.getElementById("table-district-rows");
+        tbody.innerHTML = "";
+
+        var displayItems = dists.slice(0, 50); // limit to top 50 for speed
+        displayItems.forEach(function(d) {
+          var tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-900/60";
+          tr.innerHTML = "<td class='py-2 px-3 text-slate-300 font-sans'>" + d.state + "</td>" +
+                         "<td class='py-2 px-3 text-white font-semibold font-sans'>" + d.district + "</td>" +
+                         "<td class='py-2 px-3 text-slate-400 font-sans text-[11px]'>" + d.subdivision + "</td>" +
+                         "<td class='py-2 px-3 text-right font-bold text-cyan-300'>" + d.annual.toFixed(1) + "</td>" +
+                         "<td class='py-2 px-3 text-right text-slate-300'>" + (d.seasons["Jun-Sep"] || 0).toFixed(1) + "</td>" +
+                         "<td class='py-2 px-3 text-right text-slate-400'>" + (d.seasons["Mar-May"] || 0).toFixed(1) + "</td>" +
+                         "<td class='py-2 px-3 text-right text-slate-400'>" + (d.seasons["Oct-Dec"] || 0).toFixed(1) + "</td>";
+          tbody.appendChild(tr);
+        });
+      }
+
+      // Master Refresh Function
+      function refreshAllViews() {
+        updateKPIs();
+        renderAnnualTrendChart();
+        renderComparisonTrend();
+        renderSubdivisionRanking();
+        renderHeatmap();
+        renderDistrictNormals();
+        renderMonthlyChart();
+        renderSeasonalDonut();
+        renderForecastingSection();
+        renderDistrictTable();
+      }
+
+      // Event Listeners
+      elSubSelect.addEventListener("change", function(e) {
+        activeSubdivision = e.target.value;
+        updateDistrictDropdown();
+        refreshAllViews();
+      });
+
+      elSeasonSelect.addEventListener("change", function(e) {
+        activeSeason = e.target.value;
+        refreshAllViews();
+      });
+
+      elEpochPreset.addEventListener("change", function(e) {
+        var v = e.target.value;
+        if (v === "all") { yearMin = 1901; yearMax = 2015; }
+        else if (v === "pre_indep") { yearMin = 1901; yearMax = 1946; }
+        else if (v === "post_indep") { yearMin = 1947; yearMax = 2015; }
+        else if (v === "last30") { yearMin = 1986; yearMax = 2015; }
+        elYearStart.value = yearMin;
+        elYearEnd.value = yearMax;
+        document.getElementById("label-year-range").textContent = yearMin + " – " + yearMax;
+        refreshAllViews();
+      });
+
+      function handleYearInput() {
+        var s = parseInt(elYearStart.value, 10) || 1901;
+        var e = parseInt(elYearEnd.value, 10) || 2015;
+        if (s < 1901) s = 1901;
+        if (e > 2015) e = 2015;
+        if (s > e) s = e;
+        yearMin = s;
+        yearMax = e;
+        document.getElementById("label-year-range").textContent = yearMin + " – " + yearMax;
+        elEpochPreset.value = "custom";
+        refreshAllViews();
+      }
+
+      elYearStart.addEventListener("change", handleYearInput);
+      elYearEnd.addEventListener("change", handleYearInput);
+
+      elDistrictSelect.addEventListener("change", function(e) {
+        var distName = e.target.value;
+        if (distName !== "ALL") {
+          var matched = dataStore.district_normals.find(function(d) { return d.district === distName; });
+          if (matched && matched.subdivision !== activeSubdivision) {
+            activeSubdivision = matched.subdivision;
+            elSubSelect.value = activeSubdivision;
+          }
+        }
+        refreshAllViews();
+      });
+
+      elCompareSelect.addEventListener("change", function() {
+        renderComparisonTrend();
+      });
+
+      elDistrictSearch.addEventListener("input", function(e) {
+        searchDistrictQuery = e.target.value;
+        renderDistrictTable();
+      });
+
+      elResetBtn.addEventListener("click", function() {
+        activeSubdivision = "ALL INDIA";
+        activeSeason = "ANNUAL";
+        yearMin = 1901;
+        yearMax = 2015;
+        selectedDistrict = "ALL";
+        searchDistrictQuery = "";
+        elSubSelect.value = "ALL INDIA";
+        elSeasonSelect.value = "ANNUAL";
+        elEpochPreset.value = "all";
+        elYearStart.value = 1901;
+        elYearEnd.value = 2015;
+        document.getElementById("label-year-range").textContent = "1901 – 2015";
+        elDistrictSearch.value = "";
+        updateDistrictDropdown();
+        refreshAllViews();
+      });
+
+      // Kick off
+      initDropdowns();
+      refreshAllViews();
+
+    })();
+  </script>
+</body>
+</html>
